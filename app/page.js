@@ -1,95 +1,89 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useState } from 'react';
+import { Box, Button, TextField, Stack, Typography } from '@mui/material';
 
 export default function Home() {
+  const [messages, setMessages] = useState([
+    {
+      role: 'assistant',
+      content: 'Welcome to Pantry Easy Customer Support! We\'re here to help you get the most out of your pantry management experience.'
+    }
+  ]);
+  
+  const [inputMessage, setInputMessage] = useState('');
+
+  const handleSend = async () => {
+    setInputMessage('');
+    setMessages((messages)=>[...messages, { role: 'user', content: inputMessage }]);
+    
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{ role: 'user', content: inputMessage }])
+    })
+   
+    const data = await response.json();
+    setMessages((messages)=>[...messages, { role: 'assistant', content: data.message }]);
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    <Box
+      display="flex"
+      flexDirection="column"
+      justifyContent="flex-end"
+      alignItems="center"
+      height="100vh"
+      width="100vw"
+      bgcolor="gray.50"
+      p={2}
+    >
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="space-between"
+        alignItems="center"
+        width="100%"
+        maxWidth="600px"
+        height="80%"
+        border="1px solid gray"
+        borderRadius={2}
+        p={2}
+        overflow="auto"
+        bgcolor="white"
+      >
+        <Stack spacing={2} width="100%">
+          {messages.map((message, index) => (
+            <Box
+              key={index}
+              alignSelf={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
+              bgcolor={message.role === 'assistant' ? 'lightblue' : 'lightgreen'}
+              p={2}
+              borderRadius={2}
+              boxShadow={2}
+            >
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                {message.role[0].toUpperCase() + message.role.slice(1)}
+              </Typography>
+              <Typography variant="body1">{message.content}</Typography>
+            </Box>
+          ))}
+        </Stack>
+        <Stack direction="row" spacing={2} width="100%" mt={2}>
+          <TextField
+            label="Message"
+            placeholder="Type your message here"
+            fullWidth
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          />
+          <Button variant="contained" onClick={handleSend}>
+            Send
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
   );
 }
