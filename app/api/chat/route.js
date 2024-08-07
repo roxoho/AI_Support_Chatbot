@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const systemMessage = `
@@ -30,28 +31,56 @@ export async function POST(req) {
   try {
     const reqBody = await req.json();
 
-     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const completion = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-       headers: {
-         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-         "Content-Type": "application/json"
-       },
-       body: JSON.stringify({
-         model: "qwen/qwen-2-7b-instruct:free",
-         messages: [
-           { role: "system", content: systemMessage },
-           ...reqBody
-         ],
-       })
-     });
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gryphe/mythomist-7b:free",
+        stream: true,
+        messages: [
+          { role: "system", content: systemMessage },
+          ...reqBody
+        ],
+      })
+    });
 
-     const data = await response.json();
-     
-     return NextResponse.json({message: data.choices[0].message.content},{status: 200});
-
-
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = completion.body.getReader();
+        const decoder = new TextDecoder();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = JSON.parse(line.slice(6));
+                const content = data.choices[0]?.delta?.content;
+                if (content) {
+                  controller.enqueue(new TextEncoder().encode(content));
+                }
+              }
+            }
+          }
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          controller.close();
+        }
+      },
+    });
+  
+    return new Response(stream);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
