@@ -1,17 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Box, Button, TextField, Stack, Typography } from '@mui/material';
+import { Box, Button, TextField, Stack, Typography, IconButton } from '@mui/material';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 
 export default function Home() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Welcome to Pantry Easy Customer Support! We\'re here to help you get the most out of your pantry management experience.'
+      content: 'Welcome! How can I help you today ?',
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -27,37 +30,34 @@ export default function Home() {
     setIsStreaming(true);
     const userMessage = inputMessage;
     setInputMessage('');
-    setMessages(prevMessages => [...prevMessages, { role: 'user', content: userMessage }]);
+    setMessages((prevMessages) => [...prevMessages, { role: 'user', content: userMessage }]);
 
-    // Add an initial empty message for the assistant
-    setMessages(prevMessages => [...prevMessages, { role: 'assistant', content: '' }]);
+    setMessages((prevMessages) => [...prevMessages, { role: 'assistant', content: '' }]);
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify([{ role: 'user', content: userMessage }])
+        body: JSON.stringify([{ role: 'user', content: userMessage }]),
       });
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
       let assistantMessageContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
+        const chunk = new TextDecoder().decode(value, { stream: true });
         assistantMessageContent += chunk;
 
-        setMessages(prevMessages => {
+        setMessages((prevMessages) => {
           const newMessages = [...prevMessages];
           newMessages[newMessages.length - 1].content = assistantMessageContent;
           return newMessages;
         });
+        scrollToBottom();
       }
     } catch (error) {
       console.error('Error:', error);
@@ -66,72 +66,112 @@ export default function Home() {
     }
   };
 
+  const toggleMinimize = () => {
+    setIsMinimized(prev => !prev);
+  };
+
   return (
     <Box
-      display="flex"
-      flexDirection="column"
-      justifyContent="flex-start"
-      alignItems="center"
-      height="110vh"
-      width="130vw"
-      bgcolor="gray.50"
-      p={2}
+      position="fixed"
+      bottom={16}
+      right={16}
+      width={isMinimized ? '60px' : '500px'}
+      height={isMinimized ? '60px' : '650px'}
+      borderRadius={isMinimized ? '50%' : '16px'}
+      boxShadow={3}
+      overflow="hidden"
+      bgcolor="#f0f0f0"
+      color="black"
+      zIndex={1000}
     >
-      <Box
-        display="flex"
-        flexDirection="column"
-        justifyContent="space-between"
-        alignItems="center"
-        width="100%"
-        maxWidth="520px"
-        height="90%"
-        border="1px solid gray"
-        borderRadius={2}
-        overflow="hidden"
-        bgcolor="white"
-      >
-        <Box
-          flexGrow={1}
-          width="100%"
-          p={2}
-          overflow="auto"
-        >
-          <Stack spacing={3} width="100%">
-            {messages.map((message, index) => (
-              <Box
-                key={index}
-                alignSelf={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
-                bgcolor={message.role === 'assistant' ? 'lightblue' : 'lightgreen'}
-                p={2}
-                borderRadius={4}
-                boxShadow={2}
-                maxWidth="85%"
-                alignItems={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
-              >
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  {message.role[0].toUpperCase() + message.role.slice(1)}
-                </Typography>
-                <Typography variant="body1">{message.content}</Typography>
-              </Box>
-            ))}
-            <div ref={messagesEndRef} />
+      {isMinimized ? (
+        <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+          <IconButton onClick={toggleMinimize} color="inherit">
+            <ChatOutlinedIcon fontSize="large" />
+          </IconButton>
+        </Box>
+      ) : (
+        <Box display="flex" flexDirection="column" height="100%">
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            p={1}
+            bgcolor="black"
+            color="white"
+            borderBottom="1px solid white"
+          >
+            <Typography variant="subtitle1">Customer Support</Typography>
+            <IconButton onClick={toggleMinimize} color="inherit">
+              <CloseRoundedIcon />
+            </IconButton>
+          </Box>
+          <Box
+            flexGrow={1}
+            p={1}
+            overflow="auto"
+            bgcolor="#f0f0f0"
+          >
+            <Stack spacing={1}>
+              {messages.map((message, index) => (
+                <Box
+                  key={index}
+                  alignSelf={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
+                  bgcolor={message.role === 'assistant' ? '#f8f8f8' : '#f5f5f5'}
+                  color={message.role === 'assistant' ? '#003f6e' : '#003f6e'}
+                  p={2}
+                  borderRadius={2}
+                  boxShadow={1}
+                  border="1px solid #e0e0e0" // Light border
+                  maxWidth="85%"
+                >
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    {message.role[0].toUpperCase() + message.role.slice(1)}
+                  </Typography>
+                  <Typography variant="body2" color="black">
+                    {message.content}
+                  </Typography>
+                </Box>
+              ))}
+              <div ref={messagesEndRef} />
+            </Stack>
+          </Box>
+          <Stack direction="row" spacing={1} p={1} borderTop="1px solid white" bgcolor="white">
+            <TextField
+              label="Message"
+              placeholder="Type your message here"
+              fullWidth
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && !isStreaming && handleSend()}
+              disabled={isStreaming}
+              size="small"
+              InputProps={{
+                style: {
+                  color: 'black',
+                },
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={handleSend}
+              disabled={isStreaming}
+              size="small"
+              color="inherit"
+              style={{
+                backgroundColor: 'black',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'white',
+                  color: 'black',
+                },
+              }}
+            >
+              Send
+            </Button>
           </Stack>
         </Box>
-        <Stack direction="row" spacing={2} width="100%" p={2} borderTop="1px solid gray" bgcolor="white">
-          <TextField
-            label="Message"
-            placeholder="Type your message here"
-            fullWidth
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !isStreaming && handleSend()}
-            disabled={isStreaming}
-          />
-          <Button variant="contained" onClick={handleSend} disabled={isStreaming}>
-            Send
-          </Button>
-        </Stack>
-      </Box>
+      )}
     </Box>
   );
 }
